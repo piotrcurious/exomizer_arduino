@@ -3,6 +3,7 @@
 #include <fstream>
 #include <vector>
 #include <chrono>
+#include <string>
 
 int main(int argc, char** argv) {
     if (argc < 3) {
