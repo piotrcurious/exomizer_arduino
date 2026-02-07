@@ -1,20 +1,26 @@
-# Exomizer Arduino Port
+# Exomizer-compatible Arduino Port
 
-This repository contains a C++ port of the Exomizer decompression algorithm, optimized for Arduino and other embedded systems. It includes a consolidated decompressor library, a versatile Python-based compressor, and examples for various platforms.
+This repository contains a C++ port of a decompression algorithm compatible with the "raw" stream format used by Exomizer, optimized for Arduino and other embedded systems. It includes a consolidated decompressor library, a versatile Python-based compressor, and examples for various platforms.
+
+## Key Features
+
+- **Entropy Coding:** Implements Exomizer-style entropy coding using dynamic bit-length tables and variable-length prefix codes for indices.
+- **Reentrant & Safe:** The decompressor is reentrant and includes bounds checks for safety.
+- **Streaming Support:** Supports callback-driven streaming decompression, allowing processing of data larger than available RAM using a circular window buffer.
+- **Cross-Platform:** Works on AVR (Uno/Mega), ESP32, ESP8266, and standard C++ environments.
+- **Arduino Integration:** Python tool can generate C++ headers with `PROGMEM` support.
 
 ## Project Structure
 
 - `src/`: Core decompressor library (`exomizer_decompress.h/cpp`).
 - `tools/`: Python-based compression tool (`exomizer_simple_compress.py`).
 - `examples/`: Arduino examples for ESP32 and Arduino Uno.
-- `tests/`: C++ test runner for host-side verification.
+- `tests/`: C++ test runners for host-side verification.
 - `test_harness.py`: Orchestration script for comprehensive testing.
 
 ## Decompressor Library
 
-The core decompressor is designed to be reentrant, efficient, and safe.
-
-### Usage
+### Usage (Block)
 
 ```cpp
 #include "exomizer_decompress.h"
@@ -24,49 +30,42 @@ uint8_t out_buffer[1024];
 size_t size = exod_decrunch(crunched_data, crunched_len, out_buffer, sizeof(out_buffer), is_progmem);
 ```
 
+### Usage (Streaming)
+
+```cpp
+#include "exomizer_decompress.h"
+
+int my_read_cb(void* userdata) { return my_source.read(); }
+void my_write_cb(void* userdata, uint8_t byte) { Serial.write(byte); }
+
+uint8_t window[2048]; // Sliding window
+size_t total = exod_decrunch_streaming(my_read_cb, my_write_cb, &my_ctx, window, sizeof(window));
+```
+
 ## Compression Tool
 
-The provided Python tool can compress files into the 'raw' Exomizer format or generate C++ headers.
+The Python tool compresses files into the compatible 'raw' format and can generate headers.
 
 ### Presets
 
-- `balanced` (default): Good balance between speed and ratio.
-- `speed`: Faster compression/decompression by using fewer sequences.
+- `balanced` (default): Balance between speed and ratio.
+- `speed`: Fast compression/decompression.
 - `ratio`: Maximizes compression ratio.
 
 ### Generating Headers
-
-To generate a header file for your Arduino project:
 
 ```bash
 python3 tools/exomizer_simple_compress.py input.bin output.h --name my_data --preset ratio
 ```
 
-This generates a `.h` file containing:
-- `const uint8_t my_data[]` (with `PROGMEM` on AVR).
-- `const uint32_t my_data_len` (compressed size).
-- `const uint32_t my_data_orig_len` (original size).
-
-## Examples
-
-Check the `examples/` directory for standalone Arduino sketches:
-- **BasicDecompression**: Simple string decompression from a header.
-- **MemoryOptimized**: Demonstrates handling larger data sets and cross-platform compatibility.
-
 ## Testing
 
-Run the comprehensive test suite to verify everything:
+Run the comprehensive test suite:
 
 ```bash
 python3 test_harness.py
 ```
 
-## Platform Compatibility
-
-- **AVR** (Arduino Uno, Mega, etc.): Uses `PROGMEM` to store compressed data in Flash.
-- **ESP32 / ESP8266**: Full support, data is handled in unified memory space.
-- **Standard C++**: Can be used in any C++ project.
-
 ## License
 
-This project is a port based on the Exomizer algorithm by Magnus Lind.
+This project is a port based on the bitstream format of the Exomizer algorithm by Magnus Lind.

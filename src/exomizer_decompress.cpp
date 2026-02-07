@@ -9,18 +9,52 @@
     #define EXO_READ_BYTE(ctx, offset) (ctx->crunched_data_ptr[offset])
 #endif
 
-static bool exod_read_byte(exod_state_t* ctx, uint8_t* byte) {
-    if (ctx->crunched_data_index < ctx->crunched_data_len) {
-        *byte = EXO_READ_BYTE(ctx, ctx->crunched_data_index);
-        ctx->crunched_data_index++;
-        return true;
+static int exod_read_byte(exod_state_t* ctx) {
+    if (ctx->read_cb) {
+        return ctx->read_cb(ctx->userdata);
     }
-    return false;
+    if (ctx->crunched_data_index < ctx->crunched_data_len) {
+        uint8_t b = EXO_READ_BYTE(ctx, ctx->crunched_data_index);
+        ctx->crunched_data_index++;
+        return b;
+    }
+    return -1;
+}
+
+static void exod_write_byte(exod_state_t* ctx, uint8_t byte) {
+    if (ctx->write_cb) {
+        ctx->write_cb(ctx->userdata, byte);
+    }
+
+    if (ctx->decompressed_data_ptr) {
+        if (ctx->write_cb) {
+            // In streaming mode, decompressed_data_ptr acts as a circular window buffer.
+            // We always update the window regardless of total bytes decompressed.
+            ctx->decompressed_data_ptr[ctx->decompressed_data_index % ctx->decompressed_buffer_size] = byte;
+        } else if (ctx->decompressed_data_index < ctx->decompressed_buffer_size) {
+            // In block mode, it's a standard linear buffer.
+            ctx->decompressed_data_ptr[ctx->decompressed_data_index] = byte;
+        }
+    }
+    ctx->decompressed_data_index++;
+}
+
+static uint8_t exod_get_history(exod_state_t* ctx, uint32_t offset) {
+    if (ctx->write_cb) {
+        // Circular buffer access
+        uint32_t pos = (uint32_t)(ctx->decompressed_data_index - offset);
+        return ctx->decompressed_data_ptr[pos % ctx->decompressed_buffer_size];
+    } else {
+        // Linear buffer access
+        return ctx->decompressed_data_ptr[ctx->decompressed_data_index - offset];
+    }
 }
 
 static int get_one_bit(exod_state_t* ctx) {
     if (ctx->bit_count == 0) {
-        if (!exod_read_byte(ctx, &ctx->bitbuf)) return -1;
+        int b = exod_read_byte(ctx);
+        if (b == -1) return -1;
+        ctx->bitbuf = (uint8_t)b;
         ctx->bit_count = 8;
     }
     int bit = ctx->bitbuf & 1;
@@ -53,29 +87,20 @@ static bool generate_table(exod_state_t* ctx, uint8_t *bits, uint32_t *base, int
     return true;
 }
 
-size_t exod_decrunch(const uint8_t* in_data, size_t in_len, uint8_t* out_buffer, size_t out_max_len, bool is_progmem) {
-    exod_state_t state;
-    memset(&state, 0, sizeof(exod_state_t));
-    exod_state_t* ctx = &state;
-
-    ctx->crunched_data_ptr = in_data;
-    ctx->crunched_data_len = in_len;
-    ctx->source_in_progmem = is_progmem;
-    ctx->decompressed_data_ptr = out_buffer;
-    ctx->decompressed_buffer_size = out_max_len;
-
+static size_t exod_decrunch_internal(exod_state_t* ctx) {
+    if (ctx->write_cb && ctx->decompressed_buffer_size == 0) return 0;
     if (!generate_table(ctx, ctx->lengths_bits, ctx->lengths_base, 16)) return 0;
     if (!generate_table(ctx, ctx->offsets3_bits, ctx->offsets3_base, 16)) return 0;
     if (!generate_table(ctx, ctx->offsets2_bits, ctx->offsets2_base, 16)) return 0;
     if (!generate_table(ctx, ctx->offsets1_bits, ctx->offsets1_base, 4)) return 0;
 
-    while (ctx->decompressed_data_index < ctx->decompressed_buffer_size) {
+    while (ctx->write_cb || ctx->decompressed_data_index < ctx->decompressed_buffer_size) {
         int bit = get_one_bit(ctx);
         if (bit == -1) break;
         if (bit == 1) {
             uint32_t b;
             if (get_n_bits(ctx, 8, &b) < 0) break;
-            ctx->decompressed_data_ptr[ctx->decompressed_data_index++] = (uint8_t)b;
+            exod_write_byte(ctx, (uint8_t)b);
             continue;
         }
 
@@ -89,7 +114,6 @@ size_t exod_decrunch(const uint8_t* in_data, size_t in_len, uint8_t* out_buffer,
         if (len_idx == 0xFFFFFFFFu) break;
         if (len_idx == 16) break; // EOS
 
-        // Safety check for OOB read
         if (len_idx > 15) break;
 
         uint32_t seq_len = ctx->lengths_base[len_idx];
@@ -122,10 +146,40 @@ size_t exod_decrunch(const uint8_t* in_data, size_t in_len, uint8_t* out_buffer,
 
         if (off_val == 0 || off_val > ctx->decompressed_data_index) break;
         for (uint32_t i = 0; i < seq_len; ++i) {
-            if (ctx->decompressed_data_index >= ctx->decompressed_buffer_size) break;
-            ctx->decompressed_data_ptr[ctx->decompressed_data_index] = ctx->decompressed_data_ptr[ctx->decompressed_data_index - off_val];
-            ctx->decompressed_data_index++;
+            if (!ctx->write_cb && ctx->decompressed_data_index >= ctx->decompressed_buffer_size) break;
+            uint8_t b = exod_get_history(ctx, off_val);
+            exod_write_byte(ctx, b);
         }
     }
     return ctx->decompressed_data_index;
+}
+
+size_t exod_decrunch(const uint8_t* in_data, size_t in_len, uint8_t* out_buffer, size_t out_max_len, bool is_progmem) {
+    exod_state_t state;
+    memset(&state, 0, sizeof(exod_state_t));
+    state.crunched_data_ptr = in_data;
+    state.crunched_data_len = in_len;
+    state.source_in_progmem = is_progmem;
+    state.decompressed_data_ptr = out_buffer;
+    state.decompressed_buffer_size = out_max_len;
+
+    return exod_decrunch_internal(&state);
+}
+
+size_t exod_decrunch_streaming(
+    exod_read_cb read_func,
+    exod_write_cb write_func,
+    void* userdata,
+    uint8_t* window_buffer,
+    size_t window_size
+) {
+    exod_state_t state;
+    memset(&state, 0, sizeof(exod_state_t));
+    state.read_cb = read_func;
+    state.write_cb = write_func;
+    state.userdata = userdata;
+    state.decompressed_data_ptr = window_buffer;
+    state.decompressed_buffer_size = window_size;
+
+    return exod_decrunch_internal(&state);
 }
