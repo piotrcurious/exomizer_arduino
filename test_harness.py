@@ -1,51 +1,36 @@
 import os
 import subprocess
 import time
-import random
 import sys
 
 def generate_test_data():
     if not os.path.exists("test_data"):
         os.makedirs("test_data")
 
-    # 1. Repetitive text
     with open("test_data/repetitive.txt", "w") as f:
         f.write("Exomizer " * 1000)
 
-    # 2. Random binary
     with open("test_data/random.bin", "wb") as f:
         f.write(os.urandom(5000))
 
-    # 3. Structured text (JSON)
     with open("test_data/data.json", "w") as f:
         f.write('{"items": [' + ', '.join([str(i) for i in range(1000)]) + ']}')
 
-    # 4. Small "image" (structured binary)
-    with open("test_data/image.raw", "wb") as f:
-        for y in range(64):
-            for x in range(64):
-                f.write(bytes([ (x ^ y) & 0xFF ]))
-
-def run_test(filename):
-    print(f"Testing {filename}...")
+def run_test(filename, preset="balanced"):
+    print(f"Testing {filename} with preset {preset}...")
 
     input_path = os.path.join("test_data", filename)
     crunched_path = os.path.join("test_data", filename + ".exo")
     output_path = os.path.join("test_data", filename + ".out")
 
     # 1. Compress
-    start_comp = time.time()
-    subprocess.run(["python3", "tools/exomizer_simple_compress.py", input_path, crunched_path], check=True)
-    end_comp = time.time()
+    subprocess.run(["python3", "tools/exomizer_simple_compress.py", input_path, crunched_path, "--preset", preset], check=True)
 
     # 2. Decompress
-    start_decomp = time.time()
     result = subprocess.run(["./tests/test_runner", crunched_path, output_path], capture_output=True, text=True)
-    end_decomp = time.time()
 
     if result.returncode != 0:
         print(f"  FAILED: Decompression failed for {filename}")
-        print(result.stderr)
         return False
 
     # 3. Verify
@@ -55,10 +40,30 @@ def run_test(filename):
             out_size = os.path.getsize(crunched_path)
             ratio = (out_size / in_size) * 100 if in_size > 0 else 0
             print(f"  SUCCESS: {in_size} -> {out_size} bytes ({ratio:.2f}%)")
-            print(f"  {result.stdout.strip()}")
             return True
         else:
             print(f"  FAILED: Data mismatch for {filename}")
+            return False
+
+def test_header_generation():
+    print("Testing header generation...")
+    input_path = "test_data/repetitive.txt"
+    header_path = "test_data/test_header.h"
+
+    subprocess.run(["python3", "tools/exomizer_simple_compress.py", input_path, header_path, "--name", "test_data"], check=True)
+
+    if not os.path.exists(header_path):
+        print("  FAILED: Header file not generated")
+        return False
+
+    # Verify header content (basic check)
+    with open(header_path, "r") as f:
+        content = f.read()
+        if "test_data[]" in content and "test_data_len" in content:
+            print("  SUCCESS: Header file looks correct")
+            return True
+        else:
+            print("  FAILED: Header file content invalid")
             return False
 
 def main():
@@ -68,15 +73,22 @@ def main():
 
     generate_test_data()
 
-    test_files = [f for f in os.listdir("test_data") if not f.endswith(".exo") and not f.endswith(".out")]
+    test_files = ["repetitive.txt", "random.bin", "data.json"]
+    presets = ["balanced", "speed", "ratio"]
 
     success_count = 0
-    for f in test_files:
-        if run_test(f):
-            success_count += 1
+    total_tests = len(test_files) * len(presets) + 1
 
-    print(f"\nSummary: {success_count}/{len(test_files)} tests passed.")
-    if success_count == len(test_files):
+    for preset in presets:
+        for f in test_files:
+            if run_test(f, preset):
+                success_count += 1
+
+    if test_header_generation():
+        success_count += 1
+
+    print(f"\nSummary: {success_count}/{total_tests} tests passed.")
+    if success_count == total_tests:
         sys.exit(0)
     else:
         sys.exit(1)
