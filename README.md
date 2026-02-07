@@ -2,7 +2,13 @@
 
 This repository contains a C++ port of a decompression algorithm compatible with the "raw" stream format used by Exomizer, optimized for Arduino and other embedded systems. It includes a consolidated decompressor library, a versatile Python-based compressor, and examples for various platforms.
 
-**Note:** The compressor and decompressor in this repository implement a simplified LZ77 algorithm that uses the same bitstream structure and dynamic tables as Exomizer's raw mode. It is not a full port of the official Exomizer tool but is designed to be highly compatible and efficient for embedded use.
+## Key Features
+
+- **Entropy Coding:** Implements Exomizer-style entropy coding using dynamic bit-length tables and variable-length prefix codes for indices.
+- **Reentrant & Safe:** The decompressor is reentrant and includes bounds checks for safety.
+- **Streaming Support:** Supports callback-driven streaming decompression, allowing processing of data larger than available RAM using a circular window buffer.
+- **Cross-Platform:** Works on AVR (Uno/Mega), ESP32, ESP8266, and standard C++ environments.
+- **Arduino Integration:** Python tool can generate C++ headers with `PROGMEM` support.
 
 ## Project Structure
 
@@ -13,8 +19,6 @@ This repository contains a C++ port of a decompression algorithm compatible with
 - `test_harness.py`: Orchestration script for comprehensive testing.
 
 ## Decompressor Library
-
-The core decompressor is designed to be reentrant, efficient, and safe. It supports both block-based and streaming decompression.
 
 ### Usage (Block)
 
@@ -28,20 +32,11 @@ size_t size = exod_decrunch(crunched_data, crunched_len, out_buffer, sizeof(out_
 
 ### Usage (Streaming)
 
-Streaming decompression allows you to process data without having the entire input or output in RAM at once. You only need enough RAM for the sliding window (typically up to 32KB).
-
 ```cpp
 #include "exomizer_decompress.h"
 
-int my_read_cb(void* userdata) {
-    // Return next byte or -1 on EOF
-    return my_source.read();
-}
-
-void my_write_cb(void* userdata, uint8_t byte) {
-    // Process decompressed byte
-    Serial.write(byte);
-}
+int my_read_cb(void* userdata) { return my_source.read(); }
+void my_write_cb(void* userdata, uint8_t byte) { Serial.write(byte); }
 
 uint8_t window[2048]; // Sliding window
 size_t total = exod_decrunch_streaming(my_read_cb, my_write_cb, &my_ctx, window, sizeof(window));
@@ -49,32 +44,23 @@ size_t total = exod_decrunch_streaming(my_read_cb, my_write_cb, &my_ctx, window,
 
 ## Compression Tool
 
-The provided Python tool can compress files into the compatible 'raw' format or generate C++ headers.
+The Python tool compresses files into the compatible 'raw' format and can generate headers.
 
 ### Presets
 
-- `balanced` (default): Good balance between speed and ratio.
-- `speed`: Faster compression/decompression by using fewer sequences.
+- `balanced` (default): Balance between speed and ratio.
+- `speed`: Fast compression/decompression.
 - `ratio`: Maximizes compression ratio.
 
 ### Generating Headers
-
-To generate a header file for your Arduino project:
 
 ```bash
 python3 tools/exomizer_simple_compress.py input.bin output.h --name my_data --preset ratio
 ```
 
-## Examples
-
-Check the `examples/` directory for standalone Arduino sketches:
-- **BasicDecompression**: Simple string decompression from a header.
-- **MemoryOptimized**: Demonstrates handling larger data sets and cross-platform compatibility.
-- **StreamingDecompression**: Shows how to decompress using callbacks for input and output, saving RAM.
-
 ## Testing
 
-Run the comprehensive test suite to verify both block and streaming modes, including circular window logic:
+Run the comprehensive test suite:
 
 ```bash
 python3 test_harness.py
