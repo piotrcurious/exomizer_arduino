@@ -116,10 +116,11 @@ def main():
     with open(args.input, "rb") as f: d = f.read()
     c = compress(d, window_size=config["window"], min_match=config["min_match"], hash_len=config["hash_len"])
     if args.output.endswith(".h"):
-        name = args.name if args.name else os.path.basename(args.input).replace(".","_")
+        name = args.name if args.name else os.path.basename(args.input).replace(".","_").replace("-","_")
         with open(args.output, "w") as f: f.write(to_header(c, len(d), name))
     else:
         with open(args.output, "wb") as f: f.write(c)
-    print(f"Compressed {len(d)} -> {len(c)} bytes ({len(c)/len(d)*100:.2f}%)")
+    ratio = (len(c)/len(d)*100) if len(d) > 0 else 0
+    print(f"Compressed {len(d)} -> {len(c)} bytes ({ratio:.2f}%)")
 
 if __name__ == "__main__": main()

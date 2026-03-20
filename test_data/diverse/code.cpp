@@ -112,10 +112,7 @@ static size_t exod_decrunch_internal(exod_state_t* ctx) {
             len_idx++;
         }
         if (len_idx == 0xFFFFFFFFu) break;
-        if (len_idx == 16) {
-            ctx->eos_reached = true;
-            break; // EOS
-        }
+        if (len_idx == 16) break; // EOS
 
         if (len_idx > 15) break;
 
@@ -166,10 +163,7 @@ size_t exod_decrunch(const uint8_t* in_data, size_t in_len, uint8_t* out_buffer,
     state.decompressed_data_ptr = out_buffer;
     state.decompressed_buffer_size = out_max_len;
 
-    size_t result = exod_decrunch_internal(&state);
-    if (result == 0 && state.eos_reached) return 0; // Success for empty file
-    if (result == 0 || !state.eos_reached) return (size_t)-1; // Failure
-    return result;
+    return exod_decrunch_internal(&state);
 }
 
 size_t exod_decrunch_streaming(

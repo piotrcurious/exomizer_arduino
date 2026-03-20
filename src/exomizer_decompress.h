@@ -43,6 +43,7 @@ typedef struct {
 
     // Reuse Offset State
     uint32_t last_offset_val;
+    bool     eos_reached;
 
     // Tables
     uint8_t  lengths_bits[16];

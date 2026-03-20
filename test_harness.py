@@ -4,8 +4,15 @@ import time
 import sys
 
 def generate_test_data():
-    if not os.path.exists("test_data"):
-        os.makedirs("test_data")
+    if not os.path.exists("test_data/diverse"):
+        os.makedirs("test_data/diverse")
+
+    # Reuse the diverse dataset created earlier
+    if not os.path.exists("test_data/diverse/code.cpp"):
+        with open("test_data/diverse/code.cpp", "w") as f:
+            f.write("// Sample code for testing\n")
+            for i in range(100):
+                f.write(f"void function_{i}() {{ int x = {i}; }}\n")
 
     with open("test_data/repetitive.txt", "w") as f:
         f.write("Exomizer Streaming Test " * 200)
@@ -16,10 +23,6 @@ def generate_test_data():
     with open("test_data/data.json", "w") as f:
         f.write('{"items": [' + ', '.join([str(i) for i in range(200)]) + ']}')
 
-    with open("test_data/large_repetitive.txt", "w") as f:
-        for i in range(100):
-            f.write(f"Line {i:03}: Repetitive pattern. ")
-
 def run_test(filename, preset="balanced", mode="block", window_size=32768):
     mode_str = f"{mode} mode"
     if mode == "streaming":
@@ -27,8 +30,11 @@ def run_test(filename, preset="balanced", mode="block", window_size=32768):
     print(f"Testing {filename} with preset {preset} in {mode_str}...")
 
     input_path = os.path.join("test_data", filename)
-    crunched_path = os.path.join("test_data", filename + ".exo")
-    output_path = os.path.join("test_data", filename + ".out")
+    if not os.path.exists(input_path):
+        input_path = os.path.join("test_data/diverse", filename)
+
+    crunched_path = input_path + ".exo"
+    output_path = input_path + ".out"
 
     subprocess.run([sys.executable, "tools/exomizer_simple_compress.py", input_path, crunched_path, "--preset", preset], check=True)
 
@@ -70,7 +76,9 @@ def main():
         ("repetitive.txt", "speed", "streaming", 32768),
         ("random.bin", "ratio", "block", 32768),
         ("data.json", "balanced", "streaming", 32768),
-        ("large_repetitive.txt", "ratio", "streaming", 4096),
+        ("code.cpp", "ratio", "streaming", 4096),
+        ("one_byte.bin", "balanced", "block", 1024),
+        ("empty.bin", "speed", "streaming", 1024),
     ]
 
     for filename, preset, mode, window in tests:
@@ -78,10 +86,6 @@ def main():
             success_count += 1
 
     print(f"\nSummary: {success_count}/{len(tests)} tests passed.")
-
-    # Cleanup binaries after test
-    if os.path.exists("tests/test_runner"): os.remove("tests/test_runner")
-    if os.path.exists("tests/test_streaming"): os.remove("tests/test_streaming")
 
     if success_count == len(tests):
         sys.exit(0)
