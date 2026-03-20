@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
     size_t decompressed_size = exod_decrunch(in_data.data(), in_data.size(), out_buf.data(), out_max_len, false);
     auto end = std::chrono::high_resolution_clock::now();
 
-    if (decompressed_size == 0) {
+    if (decompressed_size == (size_t)-1) {
         std::cerr << "Decompression failed!" << std::endl;
         return 1;
     }
