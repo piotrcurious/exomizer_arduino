@@ -117,6 +117,17 @@ static size_t exod_decrunch_internal(exod_state_t* ctx) {
             break; // EOS
         }
 
+        if (len_idx == 17) {
+            uint32_t run_len;
+            if (get_n_bits(ctx, 16, &run_len) < 0) break;
+            for (uint32_t i = 0; i < run_len; ++i) {
+                uint32_t val;
+                if (get_n_bits(ctx, 8, &val) < 0) break;
+                exod_write_byte(ctx, (uint8_t)val);
+            }
+            continue;
+        }
+
         if (len_idx > 15) break;
 
         uint32_t seq_len = ctx->lengths_base[len_idx];
@@ -126,22 +137,29 @@ static size_t exod_decrunch_internal(exod_state_t* ctx) {
             seq_len += extra;
         }
 
+        uint32_t off_idx = 0;
+        while (true) {
+            int b = get_one_bit(ctx);
+            if (b == 1) break;
+            if (b == -1) { off_idx = 0xFFFFFFFFu; break; }
+            off_idx++;
+        }
+        if (off_idx == 0xFFFFFFFFu) break;
+
         uint32_t off_val = 0;
+        uint32_t extra;
         if (seq_len == 1) {
-            uint32_t extra;
-            uint8_t tab_idx = len_idx % 4;
-            if (get_n_bits(ctx, ctx->offsets1_bits[tab_idx], &extra) < 0) break;
-            off_val = ctx->offsets1_base[tab_idx] + extra;
+            if (off_idx >= 4) break;
+            if (get_n_bits(ctx, ctx->offsets1_bits[off_idx], &extra) < 0) break;
+            off_val = ctx->offsets1_base[off_idx] + extra;
         } else if (seq_len == 2) {
-            uint32_t extra;
-            uint8_t tab_idx = len_idx % 16;
-            if (get_n_bits(ctx, ctx->offsets2_bits[tab_idx], &extra) < 0) break;
-            off_val = ctx->offsets2_base[tab_idx] + extra;
+            if (off_idx >= 16) break;
+            if (get_n_bits(ctx, ctx->offsets2_bits[off_idx], &extra) < 0) break;
+            off_val = ctx->offsets2_base[off_idx] + extra;
         } else {
-            uint32_t extra;
-            uint8_t tab_idx = len_idx % 16;
-            if (get_n_bits(ctx, ctx->offsets3_bits[tab_idx], &extra) < 0) break;
-            off_val = ctx->offsets3_base[tab_idx] + extra;
+            if (off_idx >= 16) break;
+            if (get_n_bits(ctx, ctx->offsets3_bits[off_idx], &extra) < 0) break;
+            off_val = ctx->offsets3_base[off_idx] + extra;
         }
 
         if (off_val == 0) off_val = ctx->last_offset_val;
