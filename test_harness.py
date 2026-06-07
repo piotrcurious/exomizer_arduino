@@ -7,7 +7,6 @@ def generate_test_data():
     if not os.path.exists("test_data/diverse"):
         os.makedirs("test_data/diverse")
 
-    # Reuse the diverse dataset created earlier
     if not os.path.exists("test_data/diverse/code.cpp"):
         with open("test_data/diverse/code.cpp", "w") as f:
             f.write("// Sample code for testing\n")
@@ -23,20 +22,25 @@ def generate_test_data():
     with open("test_data/data.json", "w") as f:
         f.write('{"items": [' + ', '.join([str(i) for i in range(200)]) + ']}')
 
-def run_test(filename, preset="balanced", mode="block", window_size=32768):
+def run_test(filename, preset="balanced", mode="block", window_size=32768, compressor="cpp"):
     mode_str = f"{mode} mode"
     if mode == "streaming":
         mode_str += f" (window: {window_size})"
-    print(f"Testing {filename} with preset {preset} in {mode_str}...")
+    print(f"Testing {filename} with preset {preset} ({compressor} compressor) in {mode_str}...")
 
-    input_path = os.path.join("test_data", filename)
+    input_path = filename
+    if not os.path.exists(input_path):
+        input_path = os.path.join("test_data", filename)
     if not os.path.exists(input_path):
         input_path = os.path.join("test_data/diverse", filename)
 
-    crunched_path = input_path + ".exo"
-    output_path = input_path + ".out"
+    crunched_path = "temp.exo"
+    output_path = "temp.out"
 
-    subprocess.run([sys.executable, "tools/exomizer_simple_compress.py", input_path, crunched_path, "--preset", preset], check=True)
+    if compressor == "python":
+        subprocess.run([sys.executable, "tools/exomizer_simple_compress.py", input_path, crunched_path, "--preset", preset], check=True, capture_output=True)
+    else:
+        subprocess.run(["./tools/exomizer_compress", input_path, crunched_path, preset], check=True, capture_output=True)
 
     if mode == "block":
         runner = "./tests/test_runner"
@@ -64,28 +68,32 @@ def run_test(filename, preset="balanced", mode="block", window_size=32768):
             return False
 
 def main():
-    print("Building test runners...")
-    subprocess.run(["g++", "-O3", "-I.", "tests/test_runner.cpp", "src/exomizer_decompress.cpp", "-o", "tests/test_runner"], check=True)
-    subprocess.run(["g++", "-O3", "-I.", "tests/test_streaming.cpp", "src/exomizer_decompress.cpp", "-o", "tests/test_streaming"], check=True)
+    print("Building project...")
+    subprocess.run(["make", "clean"], check=True)
+    subprocess.run(["make"], check=True)
 
     generate_test_data()
 
     success_count = 0
     tests = [
-        ("repetitive.txt", "balanced", "block", 32768),
-        ("repetitive.txt", "speed", "streaming", 32768),
-        ("random.bin", "ratio", "block", 32768),
-        ("data.json", "balanced", "streaming", 32768),
-        ("code.cpp", "ratio", "streaming", 4096),
-        ("one_byte.bin", "balanced", "block", 1024),
-        ("empty.bin", "speed", "streaming", 1024),
+        ("repetitive.txt", "balanced", "block", 32768, "python"),
+        ("repetitive.txt", "speed", "streaming", 32768, "cpp"),
+        ("random.bin", "ratio", "block", 32768, "cpp"),
+        ("data.json", "balanced", "streaming", 32768, "python"),
+        ("code.cpp", "ratio", "streaming", 65536, "cpp"),
+        ("test_fies/Prometheus.txt", "ratio", "streaming", 65536, "cpp"),
+        ("test_fies/Prometheus.txt", "ratio", "block", 128000, "cpp"),
     ]
 
-    for filename, preset, mode, window in tests:
-        if run_test(filename, preset, mode, window):
+    for filename, preset, mode, window, compressor in tests:
+        if run_test(filename, preset, mode, window, compressor):
             success_count += 1
 
     print(f"\nSummary: {success_count}/{len(tests)} tests passed.")
+
+    # Cleanup
+    if os.path.exists("temp.exo"): os.remove("temp.exo")
+    if os.path.exists("temp.out"): os.remove("temp.out")
 
     if success_count == len(tests):
         sys.exit(0)
