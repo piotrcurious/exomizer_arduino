@@ -42,21 +42,34 @@ uint8_t window[2048]; // Sliding window
 size_t total = exod_decrunch_streaming(my_read_cb, my_write_cb, &my_ctx, window, sizeof(window));
 ```
 
-## Compression Tool
+## Compression Tools
 
-The Python tool compresses files into the compatible 'raw' format and can generate headers.
+The repository provides two compression tools compatible with the 'raw' format:
 
-### Presets
-
-- `balanced` (default): Balance between speed and ratio.
-- `speed`: Fast compression/decompression.
-- `ratio`: Maximizes compression ratio.
-
-### Generating Headers
+### 1. Python Compressor (`tools/exomizer_simple_compress.py`)
+A versatile script for general use and generating C++ headers.
 
 ```bash
-python3 tools/exomizer_simple_compress.py input.bin output.h --name my_data --preset ratio
+python3 tools/exomizer_simple_compress.py input.bin output.exo --preset ratio
 ```
+
+### 2. High-Performance C++ Compressor (`tools/exomizer_compress.cpp`)
+A fast, optimized implementation suitable for large files and batch processing. It implements an optimal DP parser and two-pass table optimization.
+
+**Building:**
+```bash
+make
+```
+
+**Usage:**
+```bash
+./tools/exomizer_compress input.bin output.exo [preset: speed|balanced|ratio]
+```
+
+### Presets
+- `balanced` (default): Balance between speed and ratio.
+- `speed`: Fast compression/decompression.
+- `ratio`: Maximizes compression ratio using deeper search.
 
 ## Testing
 
