@@ -67,8 +67,6 @@ struct Node {
     char type; // 'l' lit, 'r' run, 'm' match
     uint32_t len;
     uint32_t off;
-    int l_idx;
-    int o_idx;
     float total_cost;
 };
 
@@ -82,10 +80,9 @@ public:
 
     Compressor(const vector<uint8_t>& d, int depth, uint32_t window)
         : data(d), hash_depth(depth), window_size(window) {
-        // Reasonable defaults
         uint8_t dl[] = {0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 7, 8, 9, 10};
-        uint8_t do3[] = {4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 10, 11, 12, 13, 14};
-        uint8_t do2[] = {3, 3, 4, 4, 5, 5, 6, 6, 7, 8, 9, 10, 11, 12, 13, 14};
+        uint8_t do3[] = {4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 15, 15, 15, 15};
+        uint8_t do2[] = {3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 15, 15, 15};
         uint8_t do1[] = {2, 3, 4, 5};
         memcpy(l_bits, dl, 16);
         memcpy(o_bits3, do3, 16);
@@ -101,59 +98,52 @@ public:
         get_base(o_bits1, o_base1, 4);
     }
 
-    void optimize_tables(const vector<Node>& path) {
-        vector<uint32_t> l_vals;
-        vector<uint32_t> o3_vals, o2_vals, o1_vals;
+    void optimize_tables_v2(const vector<uint32_t>& vals, uint8_t* bits, uint32_t* base, int count) {
+        if (vals.empty()) return;
+        map<uint32_t, int> freq;
+        for (uint32_t v : vals) freq[v]++;
+        uint32_t max_val = *max_element(vals.begin(), vals.end());
+        uint32_t curr_base = 0;
+        for (int i = 0; i < count; ++i) {
+            int best_bits = 0; float min_score = 1e18f;
+            for (int b = 0; b <= 15; ++b) {
+                uint32_t limit = curr_base + (b == 0 ? 1 : (1U << b));
+                float cost = 0; int n = 0;
+                for (auto const& [val, f] : freq) {
+                    if (val >= curr_base && val < limit) {
+                        cost += f * (i + 1 + b);
+                        n += f;
+                    }
+                }
+                if (n > 0) {
+                    float score = cost / n - 0.05f * n;
+                    if (score < min_score) { min_score = score; best_bits = b; }
+                }
+            }
+            bits[i] = best_bits;
+            base[i] = curr_base;
+            curr_base += (best_bits == 0 ? 1 : (1U << best_bits));
+            if (curr_base > max_val) break;
+        }
+    }
+
+    void optimize_all_tables(const vector<Node>& path) {
+        vector<uint32_t> l_v, o1_v, o2_v, o3_v;
         uint32_t last_o = 0;
         for (auto& p : path) {
             if (p.type == 'm') {
-                l_vals.push_back(p.len);
+                l_v.push_back(p.len);
                 uint32_t ov = (p.off == last_o) ? 0 : p.off;
-                if (p.len == 1) o1_vals.push_back(ov);
-                else if (p.len == 2) o2_vals.push_back(ov);
-                else o3_vals.push_back(ov);
+                if (p.len == 1) o1_v.push_back(ov);
+                else if (p.len == 2) o2_v.push_back(ov);
+                else o3_v.push_back(ov);
                 last_o = p.off;
             }
         }
-
-        auto fit_complex = [&](const vector<uint32_t>& vals, uint8_t* bits, uint32_t* base, int count) {
-            if (vals.empty()) return;
-            map<uint32_t, int> freq;
-            for (uint32_t v : vals) freq[v]++;
-
-            uint32_t curr_base = 0;
-            for (int i = 0; i < count; ++i) {
-                int best_b = 0; float min_added_cost = 1e18f;
-                for (int b = 0; b <= 15; ++b) {
-                    uint32_t limit = curr_base + (b == 0 ? 1 : (1U << b));
-                    float cost = 0;
-                    int items = 0;
-                    for (auto const& [v, f] : freq) {
-                        if (v >= curr_base && v < limit) {
-                            cost += f * (i + 1 + b);
-                            items += f;
-                        }
-                    }
-                    if (items > 0) {
-                        cost /= items;
-                        float score = cost - 0.1f * items;
-                        if (score < min_added_cost) {
-                            min_added_cost = score;
-                            best_b = b;
-                        }
-                    }
-                }
-                bits[i] = (uint8_t)best_b;
-                base[i] = curr_base;
-                curr_base += (best_b == 0 ? 1 : (1U << best_b));
-                if (freq.lower_bound(curr_base) == freq.end()) break;
-            }
-        };
-
-        fit_complex(l_vals, l_bits, l_base, 16);
-        fit_complex(o3_vals, o_bits3, o_base3, 16);
-        fit_complex(o2_vals, o_bits2, o_base2, 16);
-        fit_complex(o1_vals, o_bits1, o_base1, 4);
+        optimize_tables_v2(l_v, l_bits, l_base, 16);
+        optimize_tables_v2(o1_v, o_bits1, o_base1, 4);
+        optimize_tables_v2(o2_v, o_bits2, o_base2, 16);
+        optimize_tables_v2(o3_v, o_bits3, o_base3, 16);
         update_bases();
     }
 
@@ -169,18 +159,16 @@ public:
         for (size_t i = 0; i < n; ++i) {
             float ci = nodes[i].total_cost;
             uint32_t loi = last_o_at[i];
-
             if (ci + 9 < nodes[i + 1].total_cost) {
-                nodes[i + 1] = { i, 'l', 0, 0, 0, 0, ci + 9 };
+                nodes[i + 1] = { i, 'l', 0, 0, ci + 9 };
                 last_o_at[i + 1] = loi;
             }
-
             if (i + 35 <= n) {
                 for (uint32_t rl : {64, 512, 4096, 32768, 65535}) {
                     uint32_t actual_rl = min((uint32_t)(n - i), rl);
-                    float cr = ci + 1 + 18 + 16 + actual_rl * 8;
+                    float cr = ci + 35 + actual_rl * 8;
                     if (cr < nodes[i + actual_rl].total_cost) {
-                        nodes[i + actual_rl] = { i, 'r', actual_rl, 0, 0, 0, cr };
+                        nodes[i + actual_rl] = { i, 'r', actual_rl, 0, cr };
                         last_o_at[i + actual_rl] = loi;
                     }
                 }
@@ -188,24 +176,23 @@ public:
 
             auto try_match = [&](uint32_t off, uint32_t max_l) {
                 uint32_t ov = (off == loi) ? 0 : off;
-                // Try each possible length bucket
                 for (int li = 0; li < 16; ++li) {
                     if (l_base[li] > max_l) break;
-                    uint32_t l_limit = l_base[li] + (l_bits[li] == 0 ? 1 : (1U << l_bits[li]));
-                    uint32_t use_l = min(max_l, l_limit - 1);
+                    uint32_t l_lim = l_base[li] + (l_bits[li] == 0 ? 1 : (1U << l_bits[li]));
+                    uint32_t use_l = min(max_l, l_lim - 1);
                     if (use_l < l_base[li]) continue;
 
-                    uint8_t* ob_table; uint32_t* oba_table; int o_count;
-                    if (use_l == 1) { ob_table = o_bits1; oba_table = o_base1; o_count = 4; }
-                    else if (use_l == 2) { ob_table = o_bits2; oba_table = o_base2; o_count = 16; }
-                    else { ob_table = o_bits3; oba_table = o_base3; o_count = 16; }
+                    uint8_t* ot; uint32_t* ob; int oc;
+                    if (use_l == 1) { ot = o_bits1; ob = o_base1; oc = 4; }
+                    else if (use_l == 2) { ot = o_bits2; ob = o_base2; oc = 16; }
+                    else { ot = o_bits3; ob = o_base3; oc = 16; }
 
                     uint32_t dummy;
-                    int oi = get_idx_and_extra(ov, ob_table, oba_table, o_count, dummy);
+                    int oi = get_idx_and_extra(ov, ot, ob, oc, dummy);
                     if (oi != -1) {
-                        float cm = ci + 1 + (li + 1) + l_bits[li] + (oi + 1) + ob_table[oi];
+                        float cm = ci + 1 + (li + 1) + l_bits[li] + (oi + 1) + ot[oi];
                         if (cm < nodes[i + use_l].total_cost) {
-                            nodes[i + use_l] = { i, 'm', use_l, off, li, oi, cm };
+                            nodes[i + use_l] = { i, 'm', use_l, off, cm };
                             last_o_at[i + use_l] = off;
                         }
                     }
@@ -228,7 +215,7 @@ public:
                     if (off > window_size) break;
                     if (off != loi) {
                         uint32_t l = 2;
-                        while (i + l < n && data[i + l] == data[p + l]) {
+                        while (i + l < n && data[p + l] == data[i + l]) {
                             l++; if (l >= 32767) break;
                         }
                         try_match(off, l);
@@ -240,7 +227,7 @@ public:
         }
         vector<Node> path; size_t curr = n;
         while (curr > 0) {
-            if (nodes[curr].total_cost >= 1e17f) break;
+            if (nodes[curr].total_cost > 1e17f) break;
             path.push_back(nodes[curr]);
             curr = path.back().prev;
         }
@@ -250,8 +237,8 @@ public:
 
     vector<uint8_t> compress() {
         auto path = solve_dp();
-        for (int i=0; i<2; ++i) {
-            optimize_tables(path);
+        for (int i = 0; i < 3; ++i) {
+            optimize_all_tables(path);
             path = solve_dp();
         }
         BitWriter bw;
@@ -271,22 +258,22 @@ public:
                 bw.write_bits(p.len, 16);
                 for (uint32_t j = 0; j < p.len; ++j) bw.write_bits(data[p.prev + j], 8);
             } else {
+                uint32_t l_extra = 0;
+                int l_idx = get_idx_and_extra(p.len, l_bits, l_base, 16, l_extra);
                 bw.write_bit(0);
-                bw.write_unary(p.l_idx);
-                uint32_t l_extra;
-                get_idx_and_extra(p.len, l_bits, l_base, 16, l_extra);
-                bw.write_bits(l_extra, l_bits[p.l_idx]);
+                bw.write_unary(l_idx);
+                bw.write_bits(l_extra, l_bits[l_idx]);
 
-                bw.write_unary(p.o_idx);
                 uint32_t ov = (p.off == last_o) ? 0 : p.off;
-                uint8_t* ob_table; uint32_t* oba_table;
-                if (p.len == 1) { ob_table = o_bits1; oba_table = o_base1; }
-                else if (p.len == 2) { ob_table = o_bits2; oba_table = o_base2; }
-                else { ob_table = o_bits3; oba_table = o_base3; }
+                uint8_t* ot; uint32_t* ob; int oc;
+                if (p.len == 1) { ot = o_bits1; ob = o_base1; oc = 4; }
+                else if (p.len == 2) { ot = o_bits2; ob = o_base2; oc = 16; }
+                else { ot = o_bits3; ob = o_base3; oc = 16; }
 
-                uint32_t o_extra;
-                o_extra = ov - oba_table[p.o_idx];
-                bw.write_bits(o_extra, ob_table[p.o_idx]);
+                uint32_t o_extra = 0;
+                int o_idx = get_idx_and_extra(ov, ot, ob, oc, o_extra);
+                bw.write_unary(o_idx);
+                bw.write_bits(o_extra, ot[o_idx]);
                 last_o = p.off;
             }
         }
@@ -296,10 +283,7 @@ public:
 };
 
 int main(int argc, char** argv) {
-    if (argc < 3) {
-        printf("Usage: %s <input> <output> [preset: speed|balanced|ratio]\n", argv[0]);
-        return 1;
-    }
+    if (argc < 3) return 1;
     ifstream ifs(argv[1], ios::binary);
     if (!ifs) return 1;
     vector<uint8_t> data((istreambuf_iterator<char>(ifs)), istreambuf_iterator<char>());

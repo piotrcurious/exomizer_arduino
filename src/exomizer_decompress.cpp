@@ -166,6 +166,8 @@ static size_t exod_decrunch_internal(exod_state_t* ctx) {
         else ctx->last_offset_val = off_val;
 
         if (off_val == 0 || off_val > ctx->decompressed_data_index) break;
+        if (ctx->write_cb && off_val > ctx->decompressed_buffer_size) break; // Offset exceeds window
+
         for (uint32_t i = 0; i < seq_len; ++i) {
             if (!ctx->write_cb && ctx->decompressed_data_index >= ctx->decompressed_buffer_size) break;
             uint8_t b = exod_get_history(ctx, off_val);

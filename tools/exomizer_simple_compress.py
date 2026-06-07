@@ -101,44 +101,39 @@ class Compressor:
             ci = cost[i]
             loi = last_o_at[i]
 
-            # 1. Literal
             if ci + 9 < cost[i+1]:
                 cost[i+1] = ci + 9
-                from_info[i+1] = (i, 'lit', 0, 0, 0, 0)
+                from_info[i+1] = (i, 'lit', 0, 0)
                 last_o_at[i+1] = loi
 
-            # 2. Matches
             matches = self.find_matches(i, loi, hash_table)
             for l, off in matches:
                 ov = off if off != loi else 0
-
-                # Check all possible length buckets
                 for l_idx in range(16):
                     if self.l_base[l_idx] > l: break
                     l_limit = self.l_base[l_idx] + (1 if self.l_bits[l_idx] == 0 else (1 << self.l_bits[l_idx]))
                     use_l = min(l, l_limit - 1)
                     if use_l < self.l_base[l_idx]: continue
 
-                    if use_l == 1: obits_tab = self.o_bits1; obase_tab = self.l_base; o_count = 4
-                    elif use_l == 2: obits_tab = self.o_bits2; obase_tab = self.o_base2; o_count = 16
-                    else: obits_tab = self.o_bits3; obase_tab = self.o_base3; o_count = 16
+                    if use_l == 1: ot = self.o_bits1; ob = self.o_base1
+                    elif use_l == 2: ot = self.o_bits2; ob = self.o_base2
+                    else: ot = self.o_bits3; ob = self.o_base3
 
-                    o_idx, _ = self.get_idx_and_extra(ov, obits_tab, obase_tab)
+                    o_idx, _ = self.get_idx_and_extra(ov, ot, ob)
                     if o_idx != -1:
-                        c_match = ci + 1 + (l_idx + 1) + self.l_bits[l_idx] + (o_idx + 1) + obits_tab[o_idx]
+                        c_match = ci + 1 + (l_idx + 1) + self.l_bits[l_idx] + (o_idx + 1) + ot[o_idx]
                         if c_match < cost[i+use_l]:
                             cost[i+use_l] = c_match
-                            from_info[i+use_l] = (i, 'match', use_l, off, l_idx, o_idx)
+                            from_info[i+use_l] = (i, 'match', use_l, off)
                             last_o_at[i+use_l] = off
 
-            # 3. Literal Run
             if i + 35 <= n:
                 for rl in [64, 512, 4096, 65535]:
                     actual_rl = min(n - i, rl)
-                    c_run = ci + 1 + 18 + 16 + actual_rl * 8
+                    c_run = ci + 35 + actual_rl * 8
                     if c_run < cost[i+actual_rl]:
                         cost[i+actual_rl] = c_run
-                        from_info[i+actual_rl] = (i, 'run', actual_rl, 0, 0, 0)
+                        from_info[i+actual_rl] = (i, 'run', actual_rl, 0)
                         last_o_at[i+actual_rl] = loi
 
             if i + 2 <= n:
@@ -181,8 +176,7 @@ class Compressor:
                     cost = 0; items = 0
                     for v, f in freq.items():
                         if curr_base <= v < limit:
-                            cost += f * (i + 1 + b)
-                            items += f
+                            cost += f * (i + 1 + b); items += f
                     if items > 0:
                         score = (cost / items) - 0.1 * items
                         if score < min_added: min_added = score; best_b = b
@@ -199,7 +193,7 @@ class Compressor:
 
     def compress(self):
         path = self.solve_dp()
-        for _ in range(2):
+        for _ in range(3):
             self.optimize_tables(path)
             path = self.solve_dp()
 
@@ -219,23 +213,22 @@ class Compressor:
                 bw.write_bit(0)
                 bw.write_unary(17)
                 bw.write_bits(p[2], 16)
-                for j in range(p[2]):
-                    bw.write_bits(self.data[p[0]+j], 8)
+                for j in range(p[2]): bw.write_bits(self.data[p[0]+j], 8)
             else: # match
-                l, off, l_idx, o_idx = p[2], p[3], p[4], p[5]
+                l, off = p[2], p[3]
+                l_idx, l_extra = self.get_idx_and_extra(l, self.l_bits, self.l_base)
                 bw.write_bit(0)
                 bw.write_unary(l_idx)
-                _, l_extra = self.get_idx_and_extra(l, self.l_bits, self.l_base)
                 bw.write_bits(l_extra, self.l_bits[l_idx])
 
-                bw.write_unary(o_idx)
                 ov = off if off != last_o else 0
-                if l == 1: obits_tab = self.o_bits1; obase_tab = self.o_base1
-                elif l == 2: obits_tab = self.o_bits2; obase_tab = self.o_base2
-                else: obits_tab = self.o_bits3; obase_tab = self.o_base3
+                if l == 1: ot = self.o_bits1; ob = self.o_base1
+                elif l == 2: ot = self.o_bits2; ob = self.o_base2
+                else: ot = self.o_bits3; ob = self.o_base3
 
-                o_extra = ov - obase_tab[o_idx]
-                bw.write_bits(o_extra, obits_tab[o_idx])
+                o_idx, o_extra = self.get_idx_and_extra(ov, ot, ob)
+                bw.write_unary(o_idx)
+                bw.write_bits(o_extra, ot[o_idx])
                 last_o = off
 
         bw.write_bit(0); bw.write_unary(16) # EOS
@@ -248,11 +241,9 @@ def main():
     args = parser.parse_args()
     if not os.path.exists(args.input): return
     with open(args.input, "rb") as f: d = f.read()
-
     hash_len = 16
     if args.preset == "balanced": hash_len = 32
     if args.preset == "ratio": hash_len = 64
-
     comp = Compressor(d, hash_len=hash_len)
     c = comp.compress()
     with open(args.output, "wb") as f: f.write(c)
