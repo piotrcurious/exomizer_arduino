@@ -1,70 +1,127 @@
-# Improved Compression & Decompression Test Report
+# Final Comprehensive Test Report
 
-| File | Preset | Mode | Original | Compressed | Ratio | Status |
-| --- | --- | --- | --- | --- | --- | --- |
-| test_data/data.json | speed | block | 901 | 807 | 89.57% | PASS |
-| test_data/data.json | speed | streaming | 901 | 807 | 89.57% | PASS |
-| test_data/data.json | balanced | block | 901 | 807 | 89.57% | PASS |
-| test_data/data.json | balanced | streaming | 901 | 807 | 89.57% | PASS |
-| test_data/data.json | ratio | block | 901 | 807 | 89.57% | PASS |
-| test_data/data.json | ratio | streaming | 901 | 807 | 89.57% | PASS |
-| test_data/diverse/code.cpp | speed | block | 6411 | 5374 | 83.82% | PASS |
-| test_data/diverse/code.cpp | speed | streaming | 6411 | 5374 | 83.82% | PASS |
-| test_data/diverse/code.cpp | balanced | block | 6411 | 5293 | 82.56% | PASS |
-| test_data/diverse/code.cpp | balanced | streaming | 6411 | 5293 | 82.56% | PASS |
-| test_data/diverse/code.cpp | ratio | block | 6411 | 5293 | 82.56% | PASS |
-| test_data/diverse/code.cpp | ratio | streaming | 6411 | 5293 | 82.56% | PASS |
-| test_data/diverse/digits_repetitive.txt | speed | block | 1000 | 64 | 6.40% | PASS |
-| test_data/diverse/digits_repetitive.txt | speed | streaming | 1000 | 64 | 6.40% | PASS |
-| test_data/diverse/digits_repetitive.txt | balanced | block | 1000 | 62 | 6.20% | PASS |
-| test_data/diverse/digits_repetitive.txt | balanced | streaming | 1000 | 62 | 6.20% | PASS |
-| test_data/diverse/digits_repetitive.txt | ratio | block | 1000 | 62 | 6.20% | PASS |
-| test_data/diverse/digits_repetitive.txt | ratio | streaming | 1000 | 62 | 6.20% | PASS |
-| test_data/diverse/empty.bin | speed | block | 0 | 29 | N/A | PASS |
-| test_data/diverse/empty.bin | speed | streaming | 0 | 29 | N/A | PASS |
-| test_data/diverse/empty.bin | balanced | block | 0 | 29 | N/A | PASS |
-| test_data/diverse/empty.bin | balanced | streaming | 0 | 29 | N/A | PASS |
-| test_data/diverse/empty.bin | ratio | block | 0 | 29 | N/A | PASS |
-| test_data/diverse/empty.bin | ratio | streaming | 0 | 29 | N/A | PASS |
-| test_data/diverse/one_byte.bin | speed | block | 1 | 30 | 3000.00% | PASS |
-| test_data/diverse/one_byte.bin | speed | streaming | 1 | 30 | 3000.00% | PASS |
-| test_data/diverse/one_byte.bin | balanced | block | 1 | 30 | 3000.00% | PASS |
-| test_data/diverse/one_byte.bin | balanced | streaming | 1 | 30 | 3000.00% | PASS |
-| test_data/diverse/one_byte.bin | ratio | block | 1 | 30 | 3000.00% | PASS |
-| test_data/diverse/one_byte.bin | ratio | streaming | 1 | 30 | 3000.00% | PASS |
-| test_data/diverse/random_5k.bin | speed | block | 5000 | 5654 | 113.08% | PASS |
-| test_data/diverse/random_5k.bin | speed | streaming | 5000 | 5654 | 113.08% | PASS |
-| test_data/diverse/random_5k.bin | balanced | block | 5000 | 5654 | 113.08% | PASS |
-| test_data/diverse/random_5k.bin | balanced | streaming | 5000 | 5654 | 113.08% | PASS |
-| test_data/diverse/random_5k.bin | ratio | block | 5000 | 5654 | 113.08% | PASS |
-| test_data/diverse/random_5k.bin | ratio | streaming | 5000 | 5654 | 113.08% | PASS |
-| test_data/large_repetitive.txt | speed | block | 2999 | 1150 | 38.35% | PASS |
-| test_data/large_repetitive.txt | speed | streaming | 2999 | 1150 | 38.35% | PASS |
-| test_data/large_repetitive.txt | balanced | block | 2999 | 1150 | 38.35% | PASS |
-| test_data/large_repetitive.txt | balanced | streaming | 2999 | 1150 | 38.35% | PASS |
-| test_data/large_repetitive.txt | ratio | block | 2999 | 1150 | 38.35% | PASS |
-| test_data/large_repetitive.txt | ratio | streaming | 2999 | 1150 | 38.35% | PASS |
-| test_data/random.bin | speed | block | 1000 | 1154 | 115.40% | PASS |
-| test_data/random.bin | speed | streaming | 1000 | 1154 | 115.40% | PASS |
-| test_data/random.bin | balanced | block | 1000 | 1154 | 115.40% | PASS |
-| test_data/random.bin | balanced | streaming | 1000 | 1154 | 115.40% | PASS |
-| test_data/random.bin | ratio | block | 1000 | 1154 | 115.40% | PASS |
-| test_data/random.bin | ratio | streaming | 1000 | 1154 | 115.40% | PASS |
-| test_data/repetitive.txt | speed | block | 4800 | 111 | 2.31% | PASS |
-| test_data/repetitive.txt | speed | streaming | 4800 | 111 | 2.31% | PASS |
-| test_data/repetitive.txt | balanced | block | 4800 | 96 | 2.00% | PASS |
-| test_data/repetitive.txt | balanced | streaming | 4800 | 96 | 2.00% | PASS |
-| test_data/repetitive.txt | ratio | block | 4800 | 96 | 2.00% | PASS |
-| test_data/repetitive.txt | ratio | streaming | 4800 | 96 | 2.00% | PASS |
-| test_fies/Prometheus.txt | speed | block | 124729 | 124035 | 99.44% | PASS |
-| test_fies/Prometheus.txt | speed | streaming | 124729 | 124035 | 99.44% | PASS |
-| test_fies/Prometheus.txt | balanced | block | 124729 | 122467 | 98.19% | PASS |
-| test_fies/Prometheus.txt | balanced | streaming | 124729 | 122467 | 98.19% | PASS |
-| test_fies/Prometheus.txt | ratio | block | 124729 | 122467 | 98.19% | PASS |
-| test_fies/Prometheus.txt | ratio | streaming | 124729 | 122467 | 98.19% | PASS |
-| test_fies/Prometheus48+128.txt | speed | block | 20693 | 20402 | 98.59% | PASS |
-| test_fies/Prometheus48+128.txt | speed | streaming | 20693 | 20402 | 98.59% | PASS |
-| test_fies/Prometheus48+128.txt | balanced | block | 20693 | 20292 | 98.06% | PASS |
-| test_fies/Prometheus48+128.txt | balanced | streaming | 20693 | 20292 | 98.06% | PASS |
-| test_fies/Prometheus48+128.txt | ratio | block | 20693 | 20292 | 98.06% | PASS |
-| test_fies/Prometheus48+128.txt | ratio | streaming | 20693 | 20292 | 98.06% | PASS |
+| File | Compressor | Preset | Mode | Original | Compressed | Ratio | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| test_data/data.json | cpp | speed | block | 901 | 423 | 46.95% | PASS |
+| test_data/data.json | cpp | speed | streaming | 901 | 423 | 46.95% | PASS |
+| test_data/data.json | cpp | balanced | block | 901 | 423 | 46.95% | PASS |
+| test_data/data.json | cpp | balanced | streaming | 901 | 423 | 46.95% | PASS |
+| test_data/data.json | cpp | ratio | block | 901 | 423 | 46.95% | PASS |
+| test_data/data.json | cpp | ratio | streaming | 901 | 423 | 46.95% | PASS |
+| test_data/data.json | python | speed | block | 901 | 423 | 46.95% | PASS |
+| test_data/data.json | python | speed | streaming | 901 | 423 | 46.95% | PASS |
+| test_data/data.json | python | balanced | block | 901 | 423 | 46.95% | PASS |
+| test_data/data.json | python | balanced | streaming | 901 | 423 | 46.95% | PASS |
+| test_data/data.json | python | ratio | block | 901 | 423 | 46.95% | PASS |
+| test_data/data.json | python | ratio | streaming | 901 | 423 | 46.95% | PASS |
+| test_data/diverse/code.cpp | cpp | speed | block | 6411 | 2020 | 31.51% | PASS |
+| test_data/diverse/code.cpp | cpp | speed | streaming | 6411 | 2020 | 31.51% | PASS |
+| test_data/diverse/code.cpp | cpp | balanced | block | 6411 | 1928 | 30.07% | PASS |
+| test_data/diverse/code.cpp | cpp | balanced | streaming | 6411 | 1928 | 30.07% | PASS |
+| test_data/diverse/code.cpp | cpp | ratio | block | 6411 | 1917 | 29.90% | PASS |
+| test_data/diverse/code.cpp | cpp | ratio | streaming | 6411 | 1917 | 29.90% | PASS |
+| test_data/diverse/code.cpp | python | speed | block | 6411 | 2043 | 31.87% | PASS |
+| test_data/diverse/code.cpp | python | speed | streaming | 6411 | 2043 | 31.87% | PASS |
+| test_data/diverse/code.cpp | python | balanced | block | 6411 | 2002 | 31.23% | PASS |
+| test_data/diverse/code.cpp | python | balanced | streaming | 6411 | 2002 | 31.23% | PASS |
+| test_data/diverse/code.cpp | python | ratio | block | 6411 | 1987 | 30.99% | PASS |
+| test_data/diverse/code.cpp | python | ratio | streaming | 6411 | 1987 | 30.99% | PASS |
+| test_data/diverse/digits_repetitive.txt | cpp | speed | block | 1000 | 42 | 4.20% | PASS |
+| test_data/diverse/digits_repetitive.txt | cpp | speed | streaming | 1000 | 42 | 4.20% | PASS |
+| test_data/diverse/digits_repetitive.txt | cpp | balanced | block | 1000 | 42 | 4.20% | PASS |
+| test_data/diverse/digits_repetitive.txt | cpp | balanced | streaming | 1000 | 42 | 4.20% | PASS |
+| test_data/diverse/digits_repetitive.txt | cpp | ratio | block | 1000 | 42 | 4.20% | PASS |
+| test_data/diverse/digits_repetitive.txt | cpp | ratio | streaming | 1000 | 42 | 4.20% | PASS |
+| test_data/diverse/digits_repetitive.txt | python | speed | block | 1000 | 42 | 4.20% | PASS |
+| test_data/diverse/digits_repetitive.txt | python | speed | streaming | 1000 | 42 | 4.20% | PASS |
+| test_data/diverse/digits_repetitive.txt | python | balanced | block | 1000 | 42 | 4.20% | PASS |
+| test_data/diverse/digits_repetitive.txt | python | balanced | streaming | 1000 | 42 | 4.20% | PASS |
+| test_data/diverse/digits_repetitive.txt | python | ratio | block | 1000 | 42 | 4.20% | PASS |
+| test_data/diverse/digits_repetitive.txt | python | ratio | streaming | 1000 | 42 | 4.20% | PASS |
+| test_data/diverse/empty.bin | cpp | speed | block | 0 | 29 | 2900.00% | PASS |
+| test_data/diverse/empty.bin | cpp | speed | streaming | 0 | 29 | 2900.00% | PASS |
+| test_data/diverse/empty.bin | cpp | balanced | block | 0 | 29 | 2900.00% | PASS |
+| test_data/diverse/empty.bin | cpp | balanced | streaming | 0 | 29 | 2900.00% | PASS |
+| test_data/diverse/empty.bin | cpp | ratio | block | 0 | 29 | 2900.00% | PASS |
+| test_data/diverse/empty.bin | cpp | ratio | streaming | 0 | 29 | 2900.00% | PASS |
+| test_data/diverse/empty.bin | python | speed | block | 0 | 29 | 2900.00% | PASS |
+| test_data/diverse/empty.bin | python | speed | streaming | 0 | 29 | 2900.00% | PASS |
+| test_data/diverse/empty.bin | python | balanced | block | 0 | 29 | 2900.00% | PASS |
+| test_data/diverse/empty.bin | python | balanced | streaming | 0 | 29 | 2900.00% | PASS |
+| test_data/diverse/empty.bin | python | ratio | block | 0 | 29 | 2900.00% | PASS |
+| test_data/diverse/empty.bin | python | ratio | streaming | 0 | 29 | 2900.00% | PASS |
+| test_data/diverse/one_byte.bin | cpp | speed | block | 1 | 30 | 3000.00% | PASS |
+| test_data/diverse/one_byte.bin | cpp | speed | streaming | 1 | 30 | 3000.00% | PASS |
+| test_data/diverse/one_byte.bin | cpp | balanced | block | 1 | 30 | 3000.00% | PASS |
+| test_data/diverse/one_byte.bin | cpp | balanced | streaming | 1 | 30 | 3000.00% | PASS |
+| test_data/diverse/one_byte.bin | cpp | ratio | block | 1 | 30 | 3000.00% | PASS |
+| test_data/diverse/one_byte.bin | cpp | ratio | streaming | 1 | 30 | 3000.00% | PASS |
+| test_data/diverse/one_byte.bin | python | speed | block | 1 | 30 | 3000.00% | PASS |
+| test_data/diverse/one_byte.bin | python | speed | streaming | 1 | 30 | 3000.00% | PASS |
+| test_data/diverse/one_byte.bin | python | balanced | block | 1 | 30 | 3000.00% | PASS |
+| test_data/diverse/one_byte.bin | python | balanced | streaming | 1 | 30 | 3000.00% | PASS |
+| test_data/diverse/one_byte.bin | python | ratio | block | 1 | 30 | 3000.00% | PASS |
+| test_data/diverse/one_byte.bin | python | ratio | streaming | 1 | 30 | 3000.00% | PASS |
+| test_data/diverse/random_5k.bin | cpp | speed | block | 5000 | 5033 | 100.66% | PASS |
+| test_data/diverse/random_5k.bin | cpp | speed | streaming | 5000 | 5033 | 100.66% | PASS |
+| test_data/diverse/random_5k.bin | cpp | balanced | block | 5000 | 5033 | 100.66% | PASS |
+| test_data/diverse/random_5k.bin | cpp | balanced | streaming | 5000 | 5033 | 100.66% | PASS |
+| test_data/diverse/random_5k.bin | cpp | ratio | block | 5000 | 5033 | 100.66% | PASS |
+| test_data/diverse/random_5k.bin | cpp | ratio | streaming | 5000 | 5033 | 100.66% | PASS |
+| test_data/diverse/random_5k.bin | python | speed | block | 5000 | 5033 | 100.66% | PASS |
+| test_data/diverse/random_5k.bin | python | speed | streaming | 5000 | 5033 | 100.66% | PASS |
+| test_data/diverse/random_5k.bin | python | balanced | block | 5000 | 5033 | 100.66% | PASS |
+| test_data/diverse/random_5k.bin | python | balanced | streaming | 5000 | 5033 | 100.66% | PASS |
+| test_data/diverse/random_5k.bin | python | ratio | block | 5000 | 5033 | 100.66% | PASS |
+| test_data/diverse/random_5k.bin | python | ratio | streaming | 5000 | 5033 | 100.66% | PASS |
+| test_data/large_repetitive.txt | cpp | speed | block | 2999 | 282 | 9.40% | PASS |
+| test_data/large_repetitive.txt | cpp | speed | streaming | 2999 | 282 | 9.40% | PASS |
+| test_data/large_repetitive.txt | cpp | balanced | block | 2999 | 282 | 9.40% | PASS |
+| test_data/large_repetitive.txt | cpp | balanced | streaming | 2999 | 282 | 9.40% | PASS |
+| test_data/large_repetitive.txt | cpp | ratio | block | 2999 | 282 | 9.40% | PASS |
+| test_data/large_repetitive.txt | cpp | ratio | streaming | 2999 | 282 | 9.40% | PASS |
+| test_data/large_repetitive.txt | python | speed | block | 2999 | 282 | 9.40% | PASS |
+| test_data/large_repetitive.txt | python | speed | streaming | 2999 | 282 | 9.40% | PASS |
+| test_data/large_repetitive.txt | python | balanced | block | 2999 | 282 | 9.40% | PASS |
+| test_data/large_repetitive.txt | python | balanced | streaming | 2999 | 282 | 9.40% | PASS |
+| test_data/large_repetitive.txt | python | ratio | block | 2999 | 282 | 9.40% | PASS |
+| test_data/large_repetitive.txt | python | ratio | streaming | 2999 | 282 | 9.40% | PASS |
+| test_data/random.bin | cpp | speed | block | 1000 | 1033 | 103.30% | PASS |
+| test_data/random.bin | cpp | speed | streaming | 1000 | 1033 | 103.30% | PASS |
+| test_data/random.bin | cpp | balanced | block | 1000 | 1033 | 103.30% | PASS |
+| test_data/random.bin | cpp | balanced | streaming | 1000 | 1033 | 103.30% | PASS |
+| test_data/random.bin | cpp | ratio | block | 1000 | 1033 | 103.30% | PASS |
+| test_data/random.bin | cpp | ratio | streaming | 1000 | 1033 | 103.30% | PASS |
+| test_data/random.bin | python | speed | block | 1000 | 1033 | 103.30% | PASS |
+| test_data/random.bin | python | speed | streaming | 1000 | 1033 | 103.30% | PASS |
+| test_data/random.bin | python | balanced | block | 1000 | 1033 | 103.30% | PASS |
+| test_data/random.bin | python | balanced | streaming | 1000 | 1033 | 103.30% | PASS |
+| test_data/random.bin | python | ratio | block | 1000 | 1033 | 103.30% | PASS |
+| test_data/random.bin | python | ratio | streaming | 1000 | 1033 | 103.30% | PASS |
+| test_data/repetitive.txt | cpp | speed | block | 4800 | 57 | 1.19% | PASS |
+| test_data/repetitive.txt | cpp | speed | streaming | 4800 | 57 | 1.19% | PASS |
+| test_data/repetitive.txt | cpp | balanced | block | 4800 | 57 | 1.19% | PASS |
+| test_data/repetitive.txt | cpp | balanced | streaming | 4800 | 57 | 1.19% | PASS |
+| test_data/repetitive.txt | cpp | ratio | block | 4800 | 57 | 1.19% | PASS |
+| test_data/repetitive.txt | cpp | ratio | streaming | 4800 | 57 | 1.19% | PASS |
+| test_data/repetitive.txt | python | speed | N/A | 4800 | N/A | N/A | COMP TIMEOUT |
+| test_data/repetitive.txt | python | balanced | N/A | 4800 | N/A | N/A | COMP TIMEOUT |
+| test_data/repetitive.txt | python | ratio | N/A | 4800 | N/A | N/A | COMP TIMEOUT |
+| test_fies/Prometheus.txt | cpp | speed | block | 124729 | 62291 | 49.94% | PASS |
+| test_fies/Prometheus.txt | cpp | speed | streaming | 124729 | 62291 | 49.94% | PASS |
+| test_fies/Prometheus.txt | cpp | balanced | block | 124729 | 53363 | 42.78% | PASS |
+| test_fies/Prometheus.txt | cpp | balanced | streaming | 124729 | 53363 | 42.78% | PASS |
+| test_fies/Prometheus.txt | cpp | ratio | block | 124729 | 48603 | 38.97% | PASS |
+| test_fies/Prometheus.txt | cpp | ratio | streaming | 124729 | 48603 | 38.97% | PASS |
+| test_fies/Prometheus48+128.txt | cpp | speed | block | 20693 | 10234 | 49.46% | PASS |
+| test_fies/Prometheus48+128.txt | cpp | speed | streaming | 20693 | 10234 | 49.46% | PASS |
+| test_fies/Prometheus48+128.txt | cpp | balanced | block | 20693 | 9827 | 47.49% | PASS |
+| test_fies/Prometheus48+128.txt | cpp | balanced | streaming | 20693 | 9827 | 47.49% | PASS |
+| test_fies/Prometheus48+128.txt | cpp | ratio | block | 20693 | 9692 | 46.84% | PASS |
+| test_fies/Prometheus48+128.txt | cpp | ratio | streaming | 20693 | 9692 | 46.84% | PASS |
+| test_fies/Prometheus48+128.txt | python | speed | block | 20693 | 10243 | 49.50% | PASS |
+| test_fies/Prometheus48+128.txt | python | speed | streaming | 20693 | 10243 | 49.50% | PASS |
+| test_fies/Prometheus48+128.txt | python | balanced | block | 20693 | 9969 | 48.18% | PASS |
+| test_fies/Prometheus48+128.txt | python | balanced | streaming | 20693 | 9969 | 48.18% | PASS |
+| test_fies/Prometheus48+128.txt | python | ratio | block | 20693 | 10132 | 48.96% | PASS |
+| test_fies/Prometheus48+128.txt | python | ratio | streaming | 20693 | 10132 | 48.96% | PASS |
