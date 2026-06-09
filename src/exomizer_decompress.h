@@ -16,6 +16,13 @@ extern "C" {
 typedef int (*exod_read_cb)(void* userdata);
 
 /**
+ * @brief Callback for seeking in the input stream (required for memoryless streaming).
+ * @param offset The absolute offset from the start of the crunched data.
+ * @return 0 on success, -1 on failure.
+ */
+typedef int (*exod_seek_cb)(void* userdata, size_t offset);
+
+/**
  * @brief Callback for writing decompressed data.
  */
 typedef void (*exod_write_cb)(void* userdata, uint8_t byte);
@@ -29,6 +36,7 @@ typedef struct {
 
     // Callbacks for streaming
     exod_read_cb  read_cb;
+    exod_seek_cb  seek_cb;
     exod_write_cb write_cb;
     void*         userdata;
 
@@ -111,6 +119,25 @@ size_t exod_decrunch_memoryless(
     exod_write_cb write_func,
     void* userdata,
     bool is_progmem
+);
+
+/**
+ * @brief Decrunch Exomizer raw data using memoryless streaming.
+ *
+ * Similar to exod_decrunch_memoryless but allows for arbitrary input streams.
+ * Requires a seekable input source.
+ *
+ * @param read_func Callback to read crunched bytes.
+ * @param seek_func Callback to seek in the input stream.
+ * @param write_func Callback to write decompressed bytes.
+ * @param userdata User data passed to callbacks.
+ * @return size_t Total number of bytes decompressed.
+ */
+size_t exod_decrunch_memoryless_streaming(
+    exod_read_cb read_func,
+    exod_seek_cb seek_func,
+    exod_write_cb write_func,
+    void* userdata
 );
 
 #ifdef __cplusplus

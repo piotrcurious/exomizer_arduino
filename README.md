@@ -55,6 +55,20 @@ void my_write_cb(void* userdata, uint8_t byte) { Serial.write(byte); }
 size_t total = exod_decrunch_memoryless(crunched_data, crunched_len, my_write_cb, &my_ctx, is_progmem);
 ```
 
+### Usage (Memoryless Streaming)
+
+For extremely memory-constrained environments with seekable input streams, use memoryless streaming. This also requires NO sliding window buffer.
+
+```cpp
+#include "exomizer_decompress.h"
+
+int my_read_cb(void* userdata) { ... }
+int my_seek_cb(void* userdata, size_t offset) { ... } // Required to restart bitstream
+void my_write_cb(void* userdata, uint8_t byte) { ... }
+
+size_t total = exod_decrunch_memoryless_streaming(my_read_cb, my_seek_cb, my_write_cb, &my_ctx);
+```
+
 ## Compression Tools
 
 The repository provides two compression tools compatible with the 'raw' format:
