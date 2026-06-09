@@ -45,6 +45,11 @@ typedef struct {
     uint32_t last_offset_val;
     bool     eos_reached;
 
+    // Bitstream restart point (after tables)
+    uint32_t bitstream_data_index;
+    uint8_t  bitstream_data_bitbuf;
+    uint8_t  bitstream_data_bit_count;
+
     // Tables
     uint8_t  lengths_bits[16];
     uint32_t lengths_base[16];
@@ -85,6 +90,27 @@ size_t exod_decrunch_streaming(
     void* userdata,
     uint8_t* window_buffer,
     size_t window_size
+);
+
+/**
+ * @brief Decrunch Exomizer raw data using minimal memory.
+ *
+ * This version does NOT use a sliding window buffer. Instead, it re-decompresses
+ * the bitstream from the start whenever a back-reference is encountered.
+ * This is O(N^2) or worse in time but O(1) in extra memory (beyond stack).
+ *
+ * @param in_data Pointer to crunched data.
+ * @param in_len Length of crunched data.
+ * @param write_func Callback to write decompressed bytes.
+ * @param userdata User data passed to callback.
+ * @param is_progmem Set true if in_data is in Flash (AVR).
+ * @return size_t Total number of bytes decompressed.
+ */
+size_t exod_decrunch_memoryless(
+    const uint8_t* in_data, size_t in_len,
+    exod_write_cb write_func,
+    void* userdata,
+    bool is_progmem
 );
 
 #ifdef __cplusplus

@@ -42,6 +42,19 @@ uint8_t window[2048]; // Sliding window
 size_t total = exod_decrunch_streaming(my_read_cb, my_write_cb, &my_ctx, window, sizeof(window));
 ```
 
+### Usage (Memoryless)
+
+For extremely memory-constrained environments, use memoryless decompression. It requires NO sliding window buffer but is slower as it re-decompresses historical data on the fly.
+
+```cpp
+#include "exomizer_decompress.h"
+
+void my_write_cb(void* userdata, uint8_t byte) { Serial.write(byte); }
+
+// No window buffer required
+size_t total = exod_decrunch_memoryless(crunched_data, crunched_len, my_write_cb, &my_ctx, is_progmem);
+```
+
 ## Compression Tools
 
 The repository provides two compression tools compatible with the 'raw' format:
