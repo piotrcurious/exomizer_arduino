@@ -96,12 +96,13 @@ static uint8_t exod_get_history(exod_state_t* ctx, uint32_t offset) {
         sub_state.decompressed_data_index = 0;
         sub_state.write_cb = NULL;
         sub_state.last_offset_val = 0;
+        sub_state.stop_decompression = false;
 
         uint8_t result_byte = 0;
         exod_decrunch_internal(&sub_state, ctx->decompressed_data_index - offset, &result_byte, 0, (size_t)-1);
 
         if (ctx->seek_cb) {
-            ctx->seek_cb(ctx->userdata, ctx->crunched_data_index);
+            ctx->seek_cb(ctx->userdata, (size_t)ctx->crunched_data_index);
         }
         return result_byte;
     }
@@ -367,7 +368,7 @@ size_t exod_decrunch_memoryless_range(
     state.bitstream_data_bitbuf = state.bitbuf;
     state.bitstream_data_bit_count = state.bit_count;
 
-    size_t prev_index = 0;
     exod_decrunch_internal(&state, (size_t)-1, NULL, start_offset, start_offset + length);
+    if (state.decompressed_data_index <= start_offset) return 0;
     return state.decompressed_data_index - start_offset;
 }
