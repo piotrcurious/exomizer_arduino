@@ -69,6 +69,15 @@ void my_write_cb(void* userdata, uint8_t byte) { ... }
 size_t total = exod_decrunch_memoryless_streaming(my_read_cb, my_seek_cb, my_write_cb, &my_ctx);
 ```
 
+## Examples
+
+The `examples/` directory contains several Arduino sketches:
+- **BasicDecompression**: Simple block-based decompression.
+- **MemoryOptimized**: Demonstrates window-based streaming for larger files.
+- **StreamingDecompression**: Callback-driven streaming.
+- **LowMemoryDecompression**: Basic memoryless mode test.
+- **BookReader**: A showcase for Arduino Uno (2KB RAM) using memoryless mode to read the Prometheus manual (21KB) over Serial.
+
 ## Compression Tools
 
 The repository provides two compression tools compatible with the 'raw' format:
