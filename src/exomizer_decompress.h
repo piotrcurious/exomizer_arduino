@@ -52,6 +52,7 @@ typedef struct {
     // Reuse Offset State
     uint32_t last_offset_val;
     bool     eos_reached;
+    bool     stop_decompression;
 
     // Bitstream restart point (after tables)
     uint32_t bitstream_data_index;
@@ -138,6 +139,26 @@ size_t exod_decrunch_memoryless_streaming(
     exod_seek_cb seek_func,
     exod_write_cb write_func,
     void* userdata
+);
+
+/**
+ * @brief Decrunch a specific range of bytes from Exomizer raw data using minimal memory.
+ *
+ * @param in_data Pointer to crunched data.
+ * @param in_len Length of crunched data.
+ * @param start_offset Byte index to start outputting from (0-indexed).
+ * @param length Number of bytes to output.
+ * @param write_func Callback to write decompressed bytes.
+ * @param userdata User data passed to callback.
+ * @param is_progmem Set true if in_data is in Flash (AVR).
+ * @return size_t Total number of bytes output (may be less than length if EOS reached).
+ */
+size_t exod_decrunch_memoryless_range(
+    const uint8_t* in_data, size_t in_len,
+    size_t start_offset, size_t length,
+    exod_write_cb write_func,
+    void* userdata,
+    bool is_progmem
 );
 
 #ifdef __cplusplus
