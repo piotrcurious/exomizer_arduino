@@ -8,9 +8,13 @@
 #include <cstring>
 #include <stdint.h>
 #include <map>
+#include <cstdio>
 
 using namespace std;
 
+/**
+ * @brief Helper class to write bits to a byte vector.
+ */
 class BitWriter {
 public:
     vector<uint8_t> data;
@@ -18,7 +22,7 @@ public:
     int bits = 0;
 
     void write_bit(int b) {
-        if (b) curr |= (1 << bits);
+        if (b) curr |= (uint8_t)(1 << bits);
         bits++;
         if (bits == 8) {
             data.push_back(curr);
@@ -29,7 +33,7 @@ public:
 
     void write_bits(uint32_t v, int n) {
         for (int i = 0; i < n; ++i) {
-            write_bit((v >> i) & 1);
+            write_bit((int)((v >> i) & 1));
         }
     }
 
@@ -43,7 +47,10 @@ public:
     }
 };
 
-void get_base(const uint8_t* bits, uint32_t* base, int count) {
+/**
+ * @brief Pre-calculates the base values for entropy coding tables.
+ */
+static void get_base(const uint8_t* bits, uint32_t* base, int count) {
     uint32_t curr = 0;
     for (int i = 0; i < count; ++i) {
         base[i] = curr;
@@ -51,7 +58,10 @@ void get_base(const uint8_t* bits, uint32_t* base, int count) {
     }
 }
 
-int get_idx_and_extra(uint32_t val, const uint8_t* bits, const uint32_t* base, int count, uint32_t& extra) {
+/**
+ * @brief Finds the index and extra bits for a given value in a table.
+ */
+static int get_idx_and_extra(uint32_t val, const uint8_t* bits, const uint32_t* base, int count, uint32_t& extra) {
     for (int i = 0; i < count; ++i) {
         uint32_t limit = base[i] + (bits[i] == 0 ? 1 : (1U << bits[i]));
         if (val >= base[i] && val < limit) {
@@ -80,6 +90,7 @@ public:
 
     Compressor(const vector<uint8_t>& d, int depth, uint32_t window)
         : data(d), hash_depth(depth), window_size(window) {
+        // Initial reasonable default tables
         uint8_t dl[] = {0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 7, 8, 9, 10};
         uint8_t do3[] = {4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 15, 15, 15, 15};
         uint8_t do2[] = {3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 15, 15, 15};
@@ -98,7 +109,10 @@ public:
         get_base(o_bits1, o_base1, 4);
     }
 
-    void optimize_tables_v2(const vector<uint32_t>& vals, uint8_t* bits, uint32_t* base, int count) {
+    /**
+     * @brief Optimal table generator using a statistical heuristic.
+     */
+    void optimize_tables_stat(const vector<uint32_t>& vals, uint8_t* bits, uint32_t* base, int count) {
         if (vals.empty()) return;
         map<uint32_t, int> freq;
         for (uint32_t v : vals) freq[v]++;
@@ -111,16 +125,16 @@ public:
                 float cost = 0; int n = 0;
                 for (auto const& [val, f] : freq) {
                     if (val >= curr_base && val < limit) {
-                        cost += f * (i + 1 + b);
+                        cost += (float)f * (float)(i + 1 + b);
                         n += f;
                     }
                 }
                 if (n > 0) {
-                    float score = cost / n - 0.05f * n;
+                    float score = cost / (float)n - 0.05f * (float)n;
                     if (score < min_score) { min_score = score; best_bits = b; }
                 }
             }
-            bits[i] = best_bits;
+            bits[i] = (uint8_t)best_bits;
             base[i] = curr_base;
             curr_base += (best_bits == 0 ? 1 : (1U << best_bits));
             if (curr_base > max_val) break;
@@ -140,13 +154,16 @@ public:
                 last_o = p.off;
             }
         }
-        optimize_tables_v2(l_v, l_bits, l_base, 16);
-        optimize_tables_v2(o1_v, o_bits1, o_base1, 4);
-        optimize_tables_v2(o2_v, o_bits2, o_base2, 16);
-        optimize_tables_v2(o3_v, o_bits3, o_base3, 16);
+        optimize_tables_stat(l_v, l_bits, l_base, 16);
+        optimize_tables_stat(o1_v, o_bits1, o_base1, 4);
+        optimize_tables_stat(o2_v, o_bits2, o_base2, 16);
+        optimize_tables_stat(o3_v, o_bits3, o_base3, 16);
         update_bases();
     }
 
+    /**
+     * @brief Pathfinding using Dynamic Programming to find the absolute minimum bit-cost sequence.
+     */
     vector<Node> solve_dp() {
         size_t n = data.size();
         vector<Node> nodes(n + 1);
@@ -159,14 +176,18 @@ public:
         for (size_t i = 0; i < n; ++i) {
             float ci = nodes[i].total_cost;
             uint32_t loi = last_o_at[i];
-            if (ci + 9 < nodes[i + 1].total_cost) {
-                nodes[i + 1] = { i, 'l', 0, 0, ci + 9 };
+
+            // 1. Literal
+            if (ci + 9.0f < nodes[i + 1].total_cost) {
+                nodes[i + 1] = { i, 'l', 0, 0, ci + 9.0f };
                 last_o_at[i + 1] = loi;
             }
+
+            // 2. Long Literal Block (Unary 17 + 16 bit length + 8*len bits)
             if (i + 35 <= n) {
                 for (uint32_t rl : {64, 512, 4096, 32768, 65535}) {
-                    uint32_t actual_rl = min((uint32_t)(n - i), rl);
-                    float cr = ci + 35 + actual_rl * 8;
+                    uint32_t actual_rl = (uint32_t)min((size_t)(n - i), (size_t)rl);
+                    float cr = ci + 35.0f + (float)actual_rl * 8.0f;
                     if (cr < nodes[i + actual_rl].total_cost) {
                         nodes[i + actual_rl] = { i, 'r', actual_rl, 0, cr };
                         last_o_at[i + actual_rl] = loi;
@@ -179,7 +200,7 @@ public:
                 for (int li = 0; li < 16; ++li) {
                     if (l_base[li] > max_l) break;
                     uint32_t l_lim = l_base[li] + (l_bits[li] == 0 ? 1 : (1U << l_bits[li]));
-                    uint32_t use_l = min(max_l, l_lim - 1);
+                    uint32_t use_l = (uint32_t)min((size_t)max_l, (size_t)l_lim - 1);
                     if (use_l < l_base[li]) continue;
 
                     uint8_t* ot; uint32_t* ob; int oc;
@@ -187,10 +208,10 @@ public:
                     else if (use_l == 2) { ot = o_bits2; ob = o_base2; oc = 16; }
                     else { ot = o_bits3; ob = o_base3; oc = 16; }
 
-                    uint32_t dummy;
-                    int oi = get_idx_and_extra(ov, ot, ob, oc, dummy);
+                    uint32_t extra;
+                    int oi = get_idx_and_extra(ov, ot, ob, oc, extra);
                     if (oi != -1) {
-                        float cm = ci + 1 + (li + 1) + l_bits[li] + (oi + 1) + ot[oi];
+                        float cm = ci + 1.0f + (float)(li + 1) + (float)l_bits[li] + (float)(oi + 1) + (float)ot[oi];
                         if (cm < nodes[i + use_l].total_cost) {
                             nodes[i + use_l] = { i, 'm', use_l, off, cm };
                             last_o_at[i + use_l] = off;
@@ -199,6 +220,7 @@ public:
                 }
             };
 
+            // Reuse last offset
             if (loi > 0 && i >= loi) {
                 uint32_t l = 0;
                 while (i + l < n && data[i + l] == data[i - loi + l]) {
@@ -207,11 +229,12 @@ public:
                 if (l >= 1) try_match(loi, l);
             }
 
+            // New matches using hash chain
             if (i + 2 <= n) {
-                uint16_t h = (data[i] << 8) | data[i + 1];
+                uint16_t h = (uint16_t)((data[i] << 8) | data[i + 1]);
                 int p = head[h]; int count = 0;
                 while (p != -1 && count < hash_depth) {
-                    uint32_t off = i - p;
+                    uint32_t off = (uint32_t)(i - p);
                     if (off > window_size) break;
                     if (off != loi) {
                         uint32_t l = 2;
@@ -222,7 +245,7 @@ public:
                     }
                     p = prev_link[p]; count++;
                 }
-                prev_link[i] = head[h]; head[h] = i;
+                prev_link[i] = head[h]; head[h] = (int)i;
             }
         }
         vector<Node> path; size_t curr = n;
@@ -283,20 +306,29 @@ public:
 };
 
 int main(int argc, char** argv) {
-    if (argc < 3) return 1;
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s <input> <output> [preset: speed|balanced|ratio]\n", argv[0]);
+        return 1;
+    }
     ifstream ifs(argv[1], ios::binary);
-    if (!ifs) return 1;
+    if (!ifs) { fprintf(stderr, "Error: Could not open input file %s\n", argv[1]); return 1; }
     vector<uint8_t> data((istreambuf_iterator<char>(ifs)), istreambuf_iterator<char>());
+
     int depth = 64; uint32_t window = 32767;
     if (argc > 3) {
         string p = argv[3];
         if (p == "speed") { depth = 16; window = 4096; }
         else if (p == "ratio") { depth = 512; window = 65535; }
     }
+
+    printf("Compressing %zu bytes...\n", data.size());
     Compressor comp(data, depth, window);
     auto res = comp.compress();
+
     ofstream ofs(argv[2], ios::binary);
-    ofs.write((char*)res.data(), res.size());
+    if (!ofs) { fprintf(stderr, "Error: Could not open output file %s\n", argv[2]); return 1; }
+    ofs.write((char*)res.data(), (streamsize)res.size());
+
     printf("Compressed %zu -> %zu bytes (%.2f%%)\n", data.size(), res.size(), (double)res.size() / (data.empty() ? 1 : data.size()) * 100);
     return 0;
 }
