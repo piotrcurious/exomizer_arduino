@@ -27,6 +27,21 @@ typedef int (*exod_seek_cb)(void* userdata, size_t offset);
  */
 typedef void (*exod_write_cb)(void* userdata, uint8_t byte);
 
+/**
+ * @brief Entropy tables used during decompression.
+ * Moved to a separate struct to reduce stack usage during recursion.
+ */
+typedef struct {
+    uint8_t  lengths_bits[16];
+    uint32_t lengths_base[16];
+    uint8_t  offsets3_bits[16];
+    uint32_t offsets3_base[16];
+    uint8_t  offsets2_bits[16];
+    uint32_t offsets2_base[16];
+    uint8_t  offsets1_bits[4];
+    uint32_t offsets1_base[4];
+} exod_tables_t;
+
 typedef struct {
     // Stream State
     const uint8_t* crunched_data_ptr;
@@ -59,39 +74,17 @@ typedef struct {
     uint8_t  bitstream_data_bitbuf;
     uint8_t  bitstream_data_bit_count;
 
-    // Tables
-    uint8_t  lengths_bits[16];
-    uint32_t lengths_base[16];
-    uint8_t  offsets3_bits[16];
-    uint32_t offsets3_base[16];
-    uint8_t  offsets2_bits[16];
-    uint32_t offsets2_base[16];
-    uint8_t  offsets1_bits[4];
-    uint32_t offsets1_base[4];
+    // Pointer to tables (shared across recursive calls)
+    exod_tables_t* tables;
 } exod_state_t;
 
 /**
  * @brief Decrunch Exomizer raw data (Block version).
- *
- * @param in_data Pointer to crunched data.
- * @param in_len Length of crunched data.
- * @param out_buffer Pointer to output buffer.
- * @param out_max_len Max size of output buffer.
- * @param is_progmem Set true if in_data is stored in PROGMEM (Flash). Only relevant on AVR.
- * @return size_t Number of bytes decompressed, or 0 on error.
  */
 size_t exod_decrunch(const uint8_t* in_data, size_t in_len, uint8_t* out_buffer, size_t out_max_len, bool is_progmem);
 
 /**
  * @brief Decrunch Exomizer raw data (Streaming version).
- *
- * @param read_func Callback to read crunched bytes.
- * @param write_func Callback to write decompressed bytes.
- * @param userdata User data passed to callbacks.
- * @param window_buffer Pointer to a buffer used for the sliding window.
- *                      Must be at least the size of the maximum offset used during compression.
- * @param window_size Size of the window buffer.
- * @return size_t Total number of bytes decompressed.
  */
 size_t exod_decrunch_streaming(
     exod_read_cb read_func,
@@ -103,17 +96,6 @@ size_t exod_decrunch_streaming(
 
 /**
  * @brief Decrunch Exomizer raw data using minimal memory.
- *
- * This version does NOT use a sliding window buffer. Instead, it re-decompresses
- * the bitstream from the start whenever a back-reference is encountered.
- * This is O(N^2) or worse in time but O(1) in extra memory (beyond stack).
- *
- * @param in_data Pointer to crunched data.
- * @param in_len Length of crunched data.
- * @param write_func Callback to write decompressed bytes.
- * @param userdata User data passed to callback.
- * @param is_progmem Set true if in_data is in Flash (AVR).
- * @return size_t Total number of bytes decompressed.
  */
 size_t exod_decrunch_memoryless(
     const uint8_t* in_data, size_t in_len,
@@ -124,15 +106,6 @@ size_t exod_decrunch_memoryless(
 
 /**
  * @brief Decrunch Exomizer raw data using memoryless streaming.
- *
- * Similar to exod_decrunch_memoryless but allows for arbitrary input streams.
- * Requires a seekable input source.
- *
- * @param read_func Callback to read crunched bytes.
- * @param seek_func Callback to seek in the input stream.
- * @param write_func Callback to write decompressed bytes.
- * @param userdata User data passed to callbacks.
- * @return size_t Total number of bytes decompressed.
  */
 size_t exod_decrunch_memoryless_streaming(
     exod_read_cb read_func,
@@ -143,15 +116,6 @@ size_t exod_decrunch_memoryless_streaming(
 
 /**
  * @brief Decrunch a specific range of bytes from Exomizer raw data using minimal memory.
- *
- * @param in_data Pointer to crunched data.
- * @param in_len Length of crunched data.
- * @param start_offset Byte index to start outputting from (0-indexed).
- * @param length Number of bytes to output.
- * @param write_func Callback to write decompressed bytes.
- * @param userdata User data passed to callback.
- * @param is_progmem Set true if in_data is in Flash (AVR).
- * @return size_t Total number of bytes output (may be less than length if EOS reached).
  */
 size_t exod_decrunch_memoryless_range(
     const uint8_t* in_data, size_t in_len,
